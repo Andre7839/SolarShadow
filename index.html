@@ -1,0 +1,1770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Solar Shadow</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#e9eaec; --panel:#f4f5f6; --panel2:#ffffff; --border:#d4d7db;
+    --text:#23262b; --muted:#666d76; --accent:#e08900; --accent2:#0d7d8c;
+    --danger:#c0392b; --ok:#1e8a4c;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;font-family:'Nunito',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);font-size:15px;}
+  #app{display:flex;height:100vh;width:100vw;overflow:hidden;}
+  #sidebar{
+    width:420px;min-width:420px;height:100%;overflow-y:auto;background:var(--panel);
+    border-right:1px solid var(--border);padding:22px 22px 52px 22px;
+  }
+  #map{flex:1;height:100%;background:#dde1e4;}
+  h1{font-size:28px;margin:0;letter-spacing:.2px;font-weight:900;}
+  h1 small{display:none;}
+  #appSubtitle{font-size:14px;color:var(--muted);font-weight:700;margin:2px 0 16px 0;}
+  h2{font-size:18px;font-weight:800;color:var(--text);margin:0 0 10px 0;padding-top:16px;}
+  section{margin-bottom:6px;}
+  #search-section{padding-bottom:14px;border-bottom:1px solid var(--border);margin-bottom:8px;}
+  .row{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;}
+  .row label{font-size:14.5px;color:var(--muted);flex:0 0 auto;min-width:0;font-weight:600;}
+  .radioRow{font-size:14.5px;color:var(--text);display:flex;align-items:center;gap:6px;font-weight:600;}
+  input[type=text],input[type=number],input[type=date],input[type=time],select{
+    background:var(--panel2);border:1.5px solid var(--border);color:var(--text);
+    border-radius:10px;padding:9px 12px;font-size:15px;font-family:inherit;
+  }
+  input[type=text]{flex:1;min-width:0;}
+  input[type=checkbox],input[type=radio]{width:16px;height:16px;accent-color:var(--accent);}
+  button{
+    background:var(--panel2);border:1.5px solid var(--border);color:var(--text);
+    border-radius:10px;padding:10px 16px;font-size:14.5px;font-weight:700;cursor:pointer;font-family:inherit;
+  }
+  button:hover:not(:disabled){border-color:var(--accent);color:var(--accent);}
+  button:disabled{opacity:.4;cursor:not-allowed;}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#1a1204;font-weight:800;}
+  button.primary:hover:not(:disabled){color:#1a1204;filter:brightness(1.08);}
+  button.secondary{background:transparent;color:var(--muted);font-size:13.5px;}
+  button.warnBtn{border-color:var(--danger);color:var(--danger);}
+  .hint{font-size:13px;color:var(--muted);line-height:1.5;margin:4px 0 10px 0;}
+  #searchResults{margin-top:6px;}
+  .searchResultItem{padding:9px 11px;font-size:14px;border:1.5px solid var(--border);border-radius:10px;margin-bottom:6px;cursor:pointer;background:var(--panel2);}
+  .searchResultItem:hover{border-color:var(--accent2);}
+  #rowsList{max-height:190px;overflow-y:auto;margin-bottom:10px;}
+  .rowItem{display:flex;align-items:center;gap:7px;padding:8px 9px;border:1.5px solid var(--border);border-radius:10px;margin-bottom:7px;background:var(--panel2);font-size:13.5px;}
+  .swatch{width:13px;height:13px;border-radius:50%;flex:0 0 auto;}
+  .rowItem .rname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .rowItem input{width:56px;}
+  .rowItem .del{color:var(--danger);border-color:transparent;background:transparent;padding:3px 7px;font-size:15px;}
+  input[type=range]{width:100%;accent-color:var(--accent);height:20px;}
+  #progressWrap{height:8px;background:var(--panel2);border-radius:6px;overflow:hidden;margin:10px 0;}
+  #progressWrap.hidden{display:none;}
+  #progressBar{height:100%;width:0%;background:var(--accent);transition:width .15s;}
+  #legend.hidden{display:none;}
+  #legend{margin-top:10px;font-size:13px;color:var(--muted);}
+  .legendGrad{height:12px;border-radius:6px;margin-bottom:4px;}
+  .legendLabels{display:flex;justify-content:space-between;}
+  details summary{cursor:pointer;color:var(--accent2);font-size:15px;font-weight:700;padding:2px 0;}
+  details p{font-size:13px;color:var(--muted);line-height:1.6;}
+  #statusMsg{font-size:13.5px;padding:11px;border-radius:10px;margin-top:14px;background:var(--panel2);border:1.5px solid var(--border);color:var(--muted);min-height:16px;font-weight:600;}
+  #statusMsg.err{color:var(--danger);border-color:var(--danger);}
+  #statusMsg.ok{color:var(--ok);}
+  #gridInfo{font-size:13px;color:var(--muted);margin:6px 0 10px 0;white-space:pre-line;}
+  #gridInfo.warn{color:var(--danger);}
+  .leaflet-container{background:#dde1e4;}
+  label.secondary-label{font-size:13.5px;color:var(--muted);cursor:pointer;text-decoration:underline;display:inline-block;margin-top:6px;font-weight:600;}
+  .hidden{display:none;}
+  .subbox{border-left:3px solid var(--border);padding-left:12px;margin:6px 0 12px 3px;}
+  .north-arrow-ctrl{background:rgba(17,20,24,0.75);border-radius:10px;padding:3px 8px 6px 8px;box-shadow:0 1px 4px rgba(0,0,0,.5);}
+  #energyBox{font-size:14.5px;background:var(--panel2);border:1.5px solid var(--border);border-radius:10px;padding:12px;margin-top:8px;line-height:1.6;}
+  #energyBox b{color:var(--accent);}
+  #instantPowerInfo{font-size:15px;}
+  .identifyPop{font-size:14px;line-height:1.6;}
+  .identifyPop b{color:#111;}
+  #diurnalChartWrap, #dailyChartWrap{position:relative;height:190px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="sidebar">
+    <h1>Solar Shadow</h1>
+    <div id="appSubtitle">Developed by UCD Advanced Irrigation Lab</div>
+
+    <section id="search-section">
+      <div class="row">
+        <input type="text" id="searchInput" placeholder="Search a place or paste lat,lon">
+        <button id="searchBtn">Go</button>
+      </div>
+      <div id="searchResults"></div>
+    </section>
+
+    <section id="boundary-section">
+      <details>
+        <summary>Draw field boundaries</summary>
+        <div class="row">
+          <button id="drawBoundaryBtn">Draw outline</button>
+          <button id="finishBoundaryBtn" disabled>Finish</button>
+          <button id="cancelBoundaryBtn" disabled>Cancel</button>
+        </div>
+        <div class="row"><button id="clearBoundaryBtn" class="secondary">Clear outline</button></div>
+      </details>
+    </section>
+
+    <section id="uav-section">
+      <details>
+        <summary>Aerial photo</summary>
+        <div class="row">
+          <label class="secondary-label" id="uavImportLabel">Import GeoTIFF
+            <input id="uavFileInput" type="file" accept=".tif,.tiff" style="display:none">
+          </label>
+        </div>
+        <div id="uavControls" class="hidden">
+          <div class="row"><label>Opacity</label><input type="range" id="uavOpacity" min="0.1" max="1" step="0.05" value="1"></div>
+          <button id="removeUavBtn" class="secondary">Remove photo</button>
+        </div>
+      </details>
+    </section>
+
+    <section id="draw-section">
+      <h2>Panels</h2>
+      <div class="row">
+        <span class="radioRow"><input type="radio" name="panelType" id="panelTypeVertical" value="vertical" checked><label for="panelTypeVertical">Vertical wall</label></span>
+        <span class="radioRow"><input type="radio" name="panelType" id="panelTypeTilt" value="tilt"><label for="panelTypeTilt">Fixed tilt</label></span>
+      </div>
+      <div class="row">
+        <button id="addRowBtn">Draw a row</button>
+        <button id="finishRowBtn" disabled>Finish</button>
+        <button id="cancelRowBtn" disabled>Cancel</button>
+      </div>
+      <div class="row">
+        <label id="heightLabel">Height (m)</label>
+        <input type="number" id="defaultHeight" value="3" min="0.2" step="0.1" style="width:72px">
+        <span id="thicknessWrap">
+          <label>Thickness (m)</label>
+          <input type="number" id="defaultThickness" value="0.1" min="0" step="0.01" style="width:56px">
+        </span>
+      </div>
+      <div class="subbox hidden" id="tiltParamsBox">
+        <div class="row">
+          <label>Tilt angle (°)</label><input type="number" id="tiltAngle" value="25" min="0" max="90" step="1" style="width:72px">
+          <label>Azimuth (°)</label><input type="number" id="panelAzimuth" value="180" min="0" max="359" step="1" style="width:72px">
+        </div>
+        <div class="row">
+          <label>Ground clearance (m)</label><input type="number" id="groundClearance" value="0.5" min="0" step="0.1" style="width:72px">
+        </div>
+      </div>
+      <div id="rowsList"></div>
+      <details>
+        <summary>Repeat as an array</summary>
+        <div class="subbox" style="margin-top:8px;">
+          <div class="row">
+            <label>Spacing (m)</label><input type="number" id="rowSpacing" value="6" min="0.1" step="0.1" style="width:56px">
+          </div>
+          <div class="row">
+            <button id="generateArrayBtn" class="secondary">Generate from last row</button>
+          </div>
+        </div>
+      </details>
+      <div class="row" style="margin-top:8px;">
+        <button id="clearRowsBtn" class="secondary">Clear rows</button>
+        <button id="exportGeoJsonBtn" class="secondary">Save rows</button>
+        <label class="secondary-label" id="importLabel">Load rows
+          <input id="importGeoJson" type="file" accept=".json,.geojson" style="display:none">
+        </label>
+      </div>
+    </section>
+
+    <section id="datetime-section">
+      <h2>Date &amp; time</h2>
+      <div class="row">
+        <input type="date" id="dateInput">
+        <b id="timeLabel">12:00</b>
+        <button id="utcOffsetAutoBtn" class="secondary" title="Estimated time zone for the site — click to re-estimate">Auto (<span id="offsetLabel">UTC+0</span>)</button>
+      </div>
+      <input type="range" id="timeSlider" min="0" max="1439" value="720" step="5">
+      <div id="sunTimesInfo" class="hint">—</div>
+      <div id="previewInfo" class="hint"></div>
+      <div id="instantPowerInfo" class="hint" style="font-weight:600;color:var(--text);">—</div>
+      <details>
+        <summary>Time zone is wrong? Set it manually</summary>
+        <div class="row" style="margin-top:8px;">
+          <label>UTC offset (hours)</label>
+          <input type="number" id="utcOffsetInput" step="0.25" value="0" style="width:56px">
+        </div>
+      </details>
+    </section>
+
+    <section id="analysis-section">
+      <h2>Simulate</h2>
+      <div class="row"><label>Dates:</label>
+        <span class="radioRow"><input type="radio" name="dateMode" id="dateModeSingle" value="single" checked><label for="dateModeSingle">this day</label></span>
+        <span class="radioRow"><input type="radio" name="dateMode" id="dateModeRange" value="range"><label for="dateModeRange">a range</label></span>
+      </div>
+      <div id="dateRangeBox" class="hidden subbox">
+        <div class="row"><label>From</label><input type="date" id="rangeStart"><label>to</label><input type="date" id="rangeEnd"></div>
+      </div>
+      <div class="row"><label>Hours:</label>
+        <span class="radioRow"><input type="radio" name="timeMode" id="timeModeSingle" value="single" checked><label for="timeModeSingle">this moment</label></span>
+        <span class="radioRow"><input type="radio" name="timeMode" id="timeModeRange" value="range"><label for="timeModeRange">a range</label></span>
+      </div>
+      <div id="timeRangeBox" class="hidden subbox">
+        <div class="row"><label>From</label><input type="time" id="rangeStartTime" value="08:00"><label>to</label><input type="time" id="rangeEndTime" value="17:00"></div>
+      </div>
+      <div class="row" id="aggRow">
+        <label>Show</label>
+        <select id="rangeAggSelect">
+          <option value="avg" selected>average per day</option>
+          <option value="total">total over range</option>
+        </select>
+      </div>
+      <div class="row">
+        <button id="computeBtn" class="primary">Run simulation</button>
+        <button id="clearMapBtn" class="secondary">Clear map</button>
+      </div>
+      <div id="progressWrap" class="hidden"><div id="progressBar"></div></div>
+      <div id="gridInfo">—</div>
+      <details>
+        <summary>Advanced settings</summary>
+        <div class="subbox" style="margin-top:8px;">
+          <div class="row"><label>Time step</label>
+            <select id="timeStepSelect">
+              <option value="10">10 min</option>
+              <option value="15" selected>15 min</option>
+              <option value="30">30 min</option>
+              <option value="60">60 min</option>
+            </select>
+          </div>
+          <div class="row"><label>Min sun elevation (°)</label><input type="number" id="minElevation" value="3" min="0" max="30" step="1" style="width:72px"></div>
+          <div class="row"><label>Cell size (m)</label><input type="number" id="cellSize" value="2" min="0.25" step="0.25" style="width:72px"></div>
+          <div class="row"><label>Buffer (m)</label><input type="number" id="bufferInput" placeholder="auto" style="width:72px"></div>
+          <div class="row"><label>Module efficiency (%)</label><input type="number" id="moduleEff" value="20" min="1" max="30" step="0.5" style="width:72px"></div>
+          <div class="row"><label>System losses (%)</label><input type="number" id="sysLoss" value="14" min="0" max="50" step="1" style="width:72px"></div>
+          <div class="row"><label>Bifacial back factor</label><input type="number" id="backFactor" value="0.7" min="0" max="1" step="0.05" style="width:72px"></div>
+        </div>
+      </details>
+      <div id="energyBox" class="hidden"></div>
+      <div class="row">
+        <label>Show</label>
+        <select id="layerSelect">
+          <option value="none">Hidden</option>
+          <option value="A">—</option>
+          <option value="B">—</option>
+          <option value="C">Shadow %</option>
+        </select>
+        <input type="range" id="opacitySlider" min="0.1" max="1" step="0.05" value="0.75" style="width:64px">
+      </div>
+      <div id="legend" class="hidden"></div>
+    </section>
+
+    <section id="charts-section" class="hidden">
+      <h2>Charts</h2>
+      <div id="diurnalChartWrap">
+        <canvas id="diurnalChart" height="160"></canvas>
+      </div>
+      <div id="dailyChartWrap" style="margin-top:14px;">
+        <canvas id="dailyChart" height="160"></canvas>
+      </div>
+      <div class="row" style="margin-top:8px;">
+        <button id="exportChartsBtn" class="secondary">Export charts (Excel)</button>
+      </div>
+    </section>
+
+    <section id="export-section">
+      <h2>Export</h2>
+      <div class="row"><button id="exportABtn" disabled>Export layer A</button></div>
+      <div class="row"><button id="exportBBtn" disabled>Export layer B</button></div>
+      <div class="row"><button id="exportCBtn" disabled>Export shadow %</button></div>
+    </section>
+
+    <div id="statusMsg">Ready.</div>
+  </div>
+  <div id="map"></div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/suncalc@1.9.0/suncalc.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+/* ============================== GeoTIFF writer ==============================
+   Single-band Float32, uncompressed, geographic (EPSG:4326) GeoTIFF with a
+   GDAL_NODATA tag (NaN cells -> -9999). Byte layout validated standalone
+   (Python tifffile) before embedding. */
+function writeFloatGeoTIFF(width, height, west, north, pixelSizeXdeg, pixelSizeYdeg, floatData) {
+  const NUM_TAGS = 14;
+  const IFD_START = 8;
+  const IFD_SIZE = 2 + NUM_TAGS * 12 + 4;
+  const PIXELSCALE_OFFSET = IFD_START + IFD_SIZE;
+  const TIEPOINT_OFFSET = PIXELSCALE_OFFSET + 24;
+  const GEOKEYS_OFFSET = TIEPOINT_OFFSET + 48;
+  const NUM_GEOKEYS = 3;
+  const GEOKEYS_BYTES = 4 * (NUM_GEOKEYS + 1) * 2;
+  const NODATA_STR = '-9999\0';
+  const NODATA_OFFSET = GEOKEYS_OFFSET + GEOKEYS_BYTES;
+  const NODATA_BYTES = NODATA_STR.length;
+  const STRIP_OFFSET = NODATA_OFFSET + NODATA_BYTES;
+  const stripBytes = width * height * 4;
+  const totalSize = STRIP_OFFSET + stripBytes;
+
+  const buf = new ArrayBuffer(totalSize);
+  const dv = new DataView(buf);
+  const LE = true;
+
+  dv.setUint8(0, 0x49); dv.setUint8(1, 0x49);
+  dv.setUint16(2, 42, LE);
+  dv.setUint32(4, IFD_START, LE);
+
+  let p = IFD_START;
+  dv.setUint16(p, NUM_TAGS, LE); p += 2;
+
+  function writeEntry(tag, type, count, value, inline) {
+    dv.setUint16(p, tag, LE);
+    dv.setUint16(p + 2, type, LE);
+    dv.setUint32(p + 4, count, LE);
+    if (inline) {
+      if (type === 3) { dv.setUint16(p + 8, value, LE); dv.setUint16(p + 10, 0, LE); }
+      else if (type === 4) { dv.setUint32(p + 8, value, LE); }
+    } else {
+      dv.setUint32(p + 8, value, LE);
+    }
+    p += 12;
+  }
+
+  writeEntry(256, 4, 1, width, true);
+  writeEntry(257, 4, 1, height, true);
+  writeEntry(258, 3, 1, 32, true);
+  writeEntry(259, 3, 1, 1, true);
+  writeEntry(262, 3, 1, 1, true);
+  writeEntry(273, 4, 1, STRIP_OFFSET, true);
+  writeEntry(277, 3, 1, 1, true);
+  writeEntry(278, 4, 1, height, true);
+  writeEntry(279, 4, 1, stripBytes, true);
+  writeEntry(339, 3, 1, 3, true);
+  writeEntry(33550, 12, 3, PIXELSCALE_OFFSET, false);
+  writeEntry(33922, 12, 6, TIEPOINT_OFFSET, false);
+  writeEntry(34735, 3, 4 * (NUM_GEOKEYS + 1), GEOKEYS_OFFSET, false);
+  writeEntry(42113, 2, NODATA_BYTES, NODATA_OFFSET, false);
+
+  dv.setUint32(p, 0, LE); p += 4;
+
+  dv.setFloat64(PIXELSCALE_OFFSET, pixelSizeXdeg, LE);
+  dv.setFloat64(PIXELSCALE_OFFSET + 8, pixelSizeYdeg, LE);
+  dv.setFloat64(PIXELSCALE_OFFSET + 16, 0, LE);
+
+  dv.setFloat64(TIEPOINT_OFFSET, 0, LE);
+  dv.setFloat64(TIEPOINT_OFFSET + 8, 0, LE);
+  dv.setFloat64(TIEPOINT_OFFSET + 16, 0, LE);
+  dv.setFloat64(TIEPOINT_OFFSET + 24, west, LE);
+  dv.setFloat64(TIEPOINT_OFFSET + 32, north, LE);
+  dv.setFloat64(TIEPOINT_OFFSET + 40, 0, LE);
+
+  let g = GEOKEYS_OFFSET;
+  function w16(v) { dv.setUint16(g, v, LE); g += 2; }
+  w16(1); w16(1); w16(0); w16(NUM_GEOKEYS);
+  w16(1024); w16(0); w16(1); w16(2);
+  w16(1025); w16(0); w16(1); w16(1);
+  w16(2048); w16(0); w16(1); w16(4326);
+
+  for (let i = 0; i < NODATA_BYTES; i++) dv.setUint8(NODATA_OFFSET + i, NODATA_STR.charCodeAt(i));
+
+  let off = STRIP_OFFSET;
+  for (let i = 0; i < width * height; i++) {
+    const v = Number.isNaN(floatData[i]) ? -9999 : floatData[i];
+    dv.setFloat32(off, v, LE); off += 4;
+  }
+
+  return new Uint8Array(buf);
+}
+
+/* ============================== State & map ============================== */
+const DEG2RAD = Math.PI / 180;
+
+// Large numbers show as whole numbers with thousands separators; smaller,
+// more precision-sensitive numbers keep a couple of decimal places.
+function fmtNum(n, decimals) {
+  if (n === null || n === undefined || !isFinite(n)) return '0';
+  decimals = decimals === undefined ? 2 : decimals;
+  const abs = Math.abs(n);
+  if (abs >= 1000) return Math.round(n).toLocaleString('en-US');
+  const d = abs >= 100 ? 0 : decimals;
+  return n.toLocaleString('en-US', {minimumFractionDigits: d, maximumFractionDigits: d});
+}
+
+const state = {
+  drawMode: null,        // null | 'row' | 'boundary'
+  currentPoints: [],
+  tempLine: null,
+  tempMarkers: [],
+  rows: [],               // {id, latlngs:[{lat,lng}], height, thickness, layer, color}
+  nextRowId: 1,
+  boundary: null,          // {latlngs:[{lat,lng}], layer}
+  previewLayer: null,
+  result: null,
+  overlay: null,
+  overlayKind: 'none',
+  utcOffsetAuto: true,
+  uavLayer: null,
+  identifyPopup: null,
+  panelType: 'vertical'   // 'vertical' (wall) | 'tilt' (fixed-tilt rack)
+};
+
+const PALETTE = ['#ff5252','#448aff','#66bb6a','#ffca28','#ab47bc','#26c6da','#ff7043','#8d6e63','#ec407a','#9ccc65'];
+
+const map = L.map('map', {zoomControl:true}).setView([37.7749,-122.4194], 17);
+const esriSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+  maxZoom: 21, attribution: 'Tiles &copy; Esri'
+}).addTo(map);
+const osmStreets = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19, attribution: '&copy; OpenStreetMap contributors'
+});
+L.control.layers({'Satellite (Esri)': esriSat, 'Streets (OSM)': osmStreets}).addTo(map);
+L.control.scale({metric:true, imperial:false}).addTo(map);
+
+L.Control.NorthArrow = L.Control.extend({
+  options: {position: 'topright'},
+  onAdd: function () {
+    const div = L.DomUtil.create('div', 'north-arrow-ctrl');
+    div.innerHTML = '<svg width="30" height="46" viewBox="0 0 30 46" xmlns="http://www.w3.org/2000/svg">' +
+      '<text x="15" y="12" text-anchor="middle" fill="#ffb547" font-size="13" font-family="sans-serif" font-weight="700">N</text>' +
+      '<polygon points="15,15 21,37 15,32 9,37" fill="#ffb547"/>' +
+      '<line x1="15" y1="32" x2="15" y2="44" stroke="#ffb547" stroke-width="2"/>' +
+      '</svg>';
+    L.DomEvent.disableClickPropagation(div);
+    return div;
+  }
+});
+map.addControl(new L.Control.NorthArrow());
+
+const rowsLayerGroup = L.layerGroup().addTo(map);
+const boundaryLayerGroup = L.layerGroup().addTo(map);
+state.previewLayer = L.layerGroup().addTo(map);
+
+function setStatus(msg, kind) {
+  const el = document.getElementById('statusMsg');
+  el.textContent = msg;
+  el.className = kind ? kind : '';
+}
+
+/* ============================== Search ============================== */
+document.getElementById('searchBtn').addEventListener('click', doSearch);
+document.getElementById('searchInput').addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+
+function doSearch() {
+  const q = document.getElementById('searchInput').value.trim();
+  const resultsEl = document.getElementById('searchResults');
+  resultsEl.innerHTML = '';
+  if (!q) return;
+
+  const latlon = q.match(/^\s*(-?\d+(\.\d+)?)\s*,\s*(-?\d+(\.\d+)?)\s*$/);
+  if (latlon) {
+    const lat = parseFloat(latlon[1]), lon = parseFloat(latlon[3]);
+    map.setView([lat, lon], 18);
+    setStatus('Centered on ' + lat.toFixed(5) + ', ' + lon.toFixed(5) + '.', 'ok');
+    refreshLocationDependent();
+    return;
+  }
+
+  setStatus('Searching…');
+  fetch('https://nominatim.openstreetmap.org/search?format=json&limit=5&q=' + encodeURIComponent(q))
+    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(list => {
+      if (!list.length) { setStatus('No results found.', 'err'); return; }
+      setStatus('Found ' + list.length + ' result(s).', 'ok');
+      list.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'searchResultItem';
+        div.textContent = item.display_name;
+        div.addEventListener('click', () => {
+          map.setView([parseFloat(item.lat), parseFloat(item.lon)], 18);
+          resultsEl.innerHTML = '';
+          refreshLocationDependent();
+        });
+        resultsEl.appendChild(div);
+      });
+    })
+    .catch(err => setStatus('Search failed (' + err.message + '). Try lat,lon instead.', 'err'));
+}
+
+/* ============================== UAV GeoTIFF import (optional, best-effort) ============================== */
+function ensureScript(varName, url) {
+  if (window[varName]) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = url;
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('could not load ' + url));
+    document.head.appendChild(s);
+  });
+}
+
+document.getElementById('uavFileInput').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  try {
+    setStatus('Loading GeoTIFF reader…');
+    await ensureScript('GeoTIFF', 'https://unpkg.com/geotiff@2.1.3/dist-browser/geotiff.js');
+    await ensureScript('proj4', 'https://unpkg.com/proj4@2.9.2/dist/proj4.js');
+    setStatus('Parsing GeoTIFF…');
+    const buf = await file.arrayBuffer();
+    const tiff = await GeoTIFF.fromArrayBuffer(buf);
+    const image = await tiff.getImage();
+    const w = image.getWidth(), h = image.getHeight();
+    const MAXPX = 2000;
+    let rw = w, rh = h;
+    if (Math.max(w, h) > MAXPX) { const sc = MAXPX / Math.max(w, h); rw = Math.max(1, Math.round(w * sc)); rh = Math.max(1, Math.round(h * sc)); }
+    const bbox = image.getBoundingBox();
+    const rasters = await image.readRasters({ width: rw, height: rh });
+    const geoKeys = image.geoKeys || {};
+    const projCS = geoKeys.ProjectedCSTypeGeoKey;
+    const geogCS = geoKeys.GeographicTypeGeoKey;
+    let west, south, east, north;
+
+    function reprojectUTM(zone, south_) {
+      const def = '+proj=utm +zone=' + zone + (south_ ? ' +south' : '') + ' +datum=WGS84 +units=m +no_defs';
+      const c1 = proj4(def, 'EPSG:4326', [bbox[0], bbox[1]]);
+      const c2 = proj4(def, 'EPSG:4326', [bbox[2], bbox[3]]);
+      west = Math.min(c1[0], c2[0]); east = Math.max(c1[0], c2[0]);
+      south = Math.min(c1[1], c2[1]); north = Math.max(c1[1], c2[1]);
+    }
+
+    if (projCS && projCS >= 32601 && projCS <= 32660) reprojectUTM(projCS - 32600, false);
+    else if (projCS && projCS >= 32701 && projCS <= 32760) reprojectUTM(projCS - 32700, true);
+    else if (!projCS && (geogCS === 4326 || geogCS === undefined)) { west = bbox[0]; south = bbox[1]; east = bbox[2]; north = bbox[3]; }
+    else throw new Error('unsupported CRS (code ' + (projCS || geogCS || '?') + '); reproject to WGS84 or UTM first');
+
+    const canvas = document.createElement('canvas');
+    canvas.width = rw; canvas.height = rh;
+    const ctx = canvas.getContext('2d');
+    const img = ctx.createImageData(rw, rh);
+    function stretch(band) {
+      if (band instanceof Uint8Array || band instanceof Uint8ClampedArray) return band;
+      let mn = Infinity, mx = -Infinity;
+      for (let i = 0; i < band.length; i++) { const v = band[i]; if (v < mn) mn = v; if (v > mx) mx = v; }
+      const range = (mx - mn) || 1;
+      const out = new Uint8Array(band.length);
+      for (let i = 0; i < band.length; i++) out[i] = Math.max(0, Math.min(255, Math.round((band[i] - mn) / range * 255)));
+      return out;
+    }
+    const r8 = stretch(rasters[0]);
+    const g8 = rasters.length >= 2 ? stretch(rasters[1]) : r8;
+    const b8 = rasters.length >= 3 ? stretch(rasters[2]) : r8;
+    for (let i = 0; i < rw * rh; i++) { img.data[i*4]=r8[i]; img.data[i*4+1]=g8[i]; img.data[i*4+2]=b8[i]; img.data[i*4+3]=255; }
+    ctx.putImageData(img, 0, 0);
+
+    if (state.uavLayer) map.removeLayer(state.uavLayer);
+    state.uavLayer = L.imageOverlay(canvas.toDataURL(), [[south, west], [north, east]], {opacity: parseFloat(document.getElementById('uavOpacity').value)}).addTo(map);
+    map.fitBounds([[south, west], [north, east]]);
+    document.getElementById('uavControls').classList.remove('hidden');
+    setStatus('UAV imagery loaded (' + rw + '×' + rh + (rw !== w ? ', downsampled from ' + w + '×' + h : '') + '). Draw rows on top of it.', 'ok');
+  } catch (err) {
+    setStatus('GeoTIFF import failed: ' + err.message, 'err');
+  }
+  e.target.value = '';
+});
+
+document.getElementById('uavOpacity').addEventListener('input', () => { if (state.uavLayer) state.uavLayer.setOpacity(parseFloat(document.getElementById('uavOpacity').value)); });
+document.getElementById('removeUavBtn').addEventListener('click', () => {
+  if (state.uavLayer) { map.removeLayer(state.uavLayer); state.uavLayer = null; }
+  document.getElementById('uavControls').classList.add('hidden');
+});
+
+/* ============================== Drawing (rows + boundary share the same click machinery) ============================== */
+const addRowBtn = document.getElementById('addRowBtn');
+const finishRowBtn = document.getElementById('finishRowBtn');
+const cancelRowBtn = document.getElementById('cancelRowBtn');
+const drawBoundaryBtn = document.getElementById('drawBoundaryBtn');
+const finishBoundaryBtn = document.getElementById('finishBoundaryBtn');
+const cancelBoundaryBtn = document.getElementById('cancelBoundaryBtn');
+
+function startDrawing(mode) {
+  state.drawMode = mode;
+  state.currentPoints = [];
+  state.tempMarkers = [];
+  state.tempLine = L.polyline([], {color:'#ffffff', weight:3, dashArray:'6,5'}).addTo(map);
+  addRowBtn.disabled = true; drawBoundaryBtn.disabled = true;
+  finishRowBtn.disabled = mode !== 'row';
+  cancelRowBtn.disabled = mode !== 'row';
+  finishBoundaryBtn.disabled = mode !== 'boundary';
+  cancelBoundaryBtn.disabled = mode !== 'boundary';
+  map.doubleClickZoom.disable();
+  setStatus(mode === 'row' ? 'Drawing a row: click points, then Finish.' : 'Drawing the boundary: click points around the site, then Finish.');
+}
+addRowBtn.addEventListener('click', () => startDrawing('row'));
+drawBoundaryBtn.addEventListener('click', () => startDrawing('boundary'));
+
+map.on('click', e => {
+  if (state.drawMode) {
+    state.currentPoints.push(e.latlng);
+    state.tempLine.setLatLngs(state.currentPoints);
+    const m = L.circleMarker(e.latlng, {radius:4, color:'#fff', fillColor:'#fff', fillOpacity:1}).addTo(map);
+    state.tempMarkers.push(m);
+    return;
+  }
+  onIdentifyClick(e);
+});
+
+map.on('dblclick', () => { if (state.drawMode === 'row') finishRow(); else if (state.drawMode === 'boundary') finishBoundary(); });
+
+finishRowBtn.addEventListener('click', finishRow);
+cancelRowBtn.addEventListener('click', () => resetDrawing());
+finishBoundaryBtn.addEventListener('click', finishBoundary);
+cancelBoundaryBtn.addEventListener('click', () => resetDrawing());
+
+function finishRow() {
+  if (state.currentPoints.length < 2) { setStatus('Add at least 2 points before finishing.', 'err'); return; }
+  const color = PALETTE[state.rows.length % PALETTE.length];
+  const height = parseFloat(document.getElementById('defaultHeight').value) || 3;
+  const thickness = Math.max(0, parseFloat(document.getElementById('defaultThickness').value) || 0);
+  const layer = L.polyline(state.currentPoints.slice(), {color, weight:5, opacity:0.95}).addTo(rowsLayerGroup);
+  const row = { id: state.nextRowId++, latlngs: state.currentPoints.map(p => ({lat:p.lat, lng:p.lng})), height, thickness, layer, color };
+  state.rows.push(row);
+  resetDrawing();
+  renderRowsList();
+  refreshLocationDependent();
+  setStatus('Row added (' + row.latlngs.length + ' points, ' + rowLength(row).toFixed(1) + ' m).', 'ok');
+}
+
+function finishBoundary() {
+  if (state.currentPoints.length < 3) { setStatus('Add at least 3 points before finishing the boundary.', 'err'); return; }
+  if (state.boundary) boundaryLayerGroup.clearLayers();
+  const layer = L.polygon(state.currentPoints.slice(), {color:'#4fd1c5', weight:2, dashArray:'4,4', fillOpacity:0.05}).addTo(boundaryLayerGroup);
+  state.boundary = { latlngs: state.currentPoints.map(p => ({lat:p.lat, lng:p.lng})), layer };
+  resetDrawing();
+  updateGridInfo();
+  setStatus('Boundary set (' + state.boundary.latlngs.length + ' points).', 'ok');
+}
+
+document.getElementById('clearBoundaryBtn').addEventListener('click', () => {
+  if (!state.boundary) return;
+  boundaryLayerGroup.clearLayers();
+  state.boundary = null;
+  updateGridInfo();
+  setStatus('Boundary cleared.', 'ok');
+});
+
+function resetDrawing() {
+  if (state.tempLine) map.removeLayer(state.tempLine);
+  state.tempMarkers.forEach(m => map.removeLayer(m));
+  state.drawMode = null;
+  state.currentPoints = [];
+  state.tempLine = null;
+  state.tempMarkers = [];
+  addRowBtn.disabled = false; drawBoundaryBtn.disabled = false;
+  finishRowBtn.disabled = true; cancelRowBtn.disabled = true;
+  finishBoundaryBtn.disabled = true; cancelBoundaryBtn.disabled = true;
+  map.doubleClickZoom.enable();
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && state.drawMode) resetDrawing(); });
+
+function rowLength(row) {
+  let d = 0;
+  for (let i = 0; i < row.latlngs.length - 1; i++) d += L.latLng(row.latlngs[i]).distanceTo(L.latLng(row.latlngs[i+1]));
+  return d;
+}
+
+/* ============================== Panel type (vertical wall vs. fixed tilt) ============================== */
+function tiltRadFromUI() { const v = parseFloat(document.getElementById('tiltAngle').value); return (isNaN(v) ? 25 : Math.max(0, Math.min(90, v))) * DEG2RAD; }
+function panelAzRadFromUI() { let v = parseFloat(document.getElementById('panelAzimuth').value); if (isNaN(v)) v = 180; return (((v % 360) + 360) % 360) * DEG2RAD; }
+function groundClearanceFromUI() { return Math.max(0, parseFloat(document.getElementById('groundClearance').value) || 0); }
+function currentPanelOpts() {
+  return { panelType: state.panelType, tiltRad: tiltRadFromUI(), panelAzRad: panelAzRadFromUI(), groundClearance: groundClearanceFromUI() };
+}
+function updatePanelTypeUI() {
+  const isTilt = state.panelType === 'tilt';
+  document.getElementById('tiltParamsBox').classList.toggle('hidden', !isTilt);
+  document.getElementById('heightLabel').textContent = isTilt ? 'Collector width (m)' : 'Height (m)';
+  document.getElementById('thicknessWrap').classList.toggle('hidden', isTilt);
+  renderRowsList();
+}
+document.querySelectorAll('input[name=panelType]').forEach(r => r.addEventListener('change', () => {
+  state.panelType = document.querySelector('input[name=panelType]:checked').value;
+  updatePanelTypeUI();
+  updateGridInfo();
+  updatePreview();
+}));
+['tiltAngle','panelAzimuth','groundClearance'].forEach(id => document.getElementById(id).addEventListener('input', () => { updateGridInfo(); updatePreview(); }));
+
+function renderRowsList() {
+  const el = document.getElementById('rowsList');
+  el.innerHTML = '';
+  const isTilt = state.panelType === 'tilt';
+  state.rows.forEach((row, idx) => {
+    const div = document.createElement('div');
+    div.className = 'rowItem';
+    const sw = document.createElement('div'); sw.className = 'swatch'; sw.style.background = row.color;
+    const name = document.createElement('div'); name.className = 'rname';
+    const len = rowLength(row);
+    name.textContent = 'Row ' + (idx+1) + ' · ' + fmtNum(len,1) + 'm · ' + fmtNum(len*row.height,1) + 'm²';
+    const hInput = document.createElement('input');
+    hInput.type = 'number'; hInput.value = row.height; hInput.step = '0.1'; hInput.min = '0.2'; hInput.title = isTilt ? 'Collector width (m)' : 'Height (m)';
+    hInput.addEventListener('input', () => { row.height = parseFloat(hInput.value) || row.height; updatePreview(); });
+    const tInput = document.createElement('input');
+    tInput.type = 'number'; tInput.value = row.thickness; tInput.step = '0.01'; tInput.min = '0'; tInput.title = 'Thickness (m)';
+    tInput.style.display = isTilt ? 'none' : '';
+    tInput.addEventListener('input', () => { row.thickness = Math.max(0, parseFloat(tInput.value) || 0); updatePreview(); });
+    const del = document.createElement('button'); del.className = 'del'; del.textContent = '✕';
+    del.addEventListener('click', () => {
+      map.removeLayer(row.layer);
+      state.rows = state.rows.filter(r => r.id !== row.id);
+      renderRowsList();
+      refreshLocationDependent();
+    });
+    div.appendChild(sw); div.appendChild(name); div.appendChild(hInput); div.appendChild(tInput); div.appendChild(del);
+    el.appendChild(div);
+  });
+}
+
+document.getElementById('clearRowsBtn').addEventListener('click', () => {
+  if (!state.rows.length) return;
+  if (!confirm('Remove all ' + state.rows.length + ' row(s)?')) return;
+  state.rows.forEach(r => map.removeLayer(r.layer));
+  state.rows = [];
+  renderRowsList();
+  refreshLocationDependent();
+});
+
+document.getElementById('clearMapBtn').addEventListener('click', () => {
+  if (state.overlay) { map.removeLayer(state.overlay); state.overlay = null; }
+  document.getElementById('legend').classList.add('hidden');
+  document.getElementById('layerSelect').value = 'none';
+  state.previewLayer.clearLayers();
+  if (state.identifyPopup) { map.closePopup(state.identifyPopup); state.identifyPopup = null; }
+  setStatus('Cleared the simulated overlay from the map (rows/boundary/data kept).', 'ok');
+});
+
+/* Array generator: replicate the last drawn row at a fixed spacing */
+document.getElementById('generateArrayBtn').addEventListener('click', () => {
+  if (!state.rows.length) { setStatus('Draw one row first, then generate the array from it.', 'err'); return; }
+  if (!state.boundary) { setStatus('A field boundary is required to generate an array. Draw one first (see "Draw field boundaries" above).', 'err'); return; }
+
+  // The last drawn row is the template. Everything else gets replaced by the
+  // fill, so the array always describes one full field from one reference row.
+  const ref = state.rows[state.rows.length - 1];
+  const spacing = Math.max(0.1, parseFloat(document.getElementById('rowSpacing').value) || 6);
+
+  state.rows.filter(r => r.id !== ref.id).forEach(r => map.removeLayer(r.layer));
+  state.rows = [ref];
+
+  const lat0 = ref.latlngs[0].lat;
+  projLon0 = ref.latlngs[0].lng;
+  const proj = makeProjector(lat0);
+  const localPts = ref.latlngs.map(p => proj.toLocal(p.lat, p.lng));
+  const [ax, ay] = localPts[0], [bx, by] = localPts[localPts.length - 1];
+  const dxSeg = bx - ax, dySeg = by - ay;
+  const len = Math.hypot(dxSeg, dySeg) || 1;
+  const px = -dySeg / len, py = dxSeg / len; // unit perpendicular to the reference row
+
+  const boundaryLocal = state.boundary.latlngs.map(p => proj.toLocal(p.lat, p.lng));
+
+  function addRowFromLocalPts(pts) {
+    const newLatLngs = pts.map(([x, y]) => { const [lat, lon] = proj.toLatLon(x, y); return {lat, lng: lon}; });
+    const color = PALETTE[state.rows.length % PALETTE.length];
+    const layer = L.polyline(newLatLngs.map(p => [p.lat, p.lng]), {color, weight:5, opacity:0.95}).addTo(rowsLayerGroup);
+    state.rows.push({ id: state.nextRowId++, latlngs: newLatLngs, height: ref.height, thickness: ref.thickness, layer, color });
+  }
+
+  // Step outward from the reference row in one perpendicular direction until a
+  // whole step falls entirely outside the boundary, then stop that side.
+  function fillDirection(sign) {
+    let added = 0, trimmed = 0;
+    const MAX_STEPS = 2000;
+    for (let k = 1; k <= MAX_STEPS; k++) {
+      const offX = px * spacing * k * sign, offY = py * spacing * k * sign;
+      const newLocalPts = localPts.map(([x, y]) => [x + offX, y + offY]);
+      let anyKept = false, anyTrimmed = false;
+      for (let i = 0; i < newLocalPts.length - 1; i++) {
+        const [ax2, ay2] = newLocalPts[i], [bx2, by2] = newLocalPts[i+1];
+        const pieces = clipSegmentToPolygon(ax2, ay2, bx2, by2, boundaryLocal);
+        const fullSegInside = pieces.length === 1 &&
+          Math.hypot(pieces[0][0]-ax2, pieces[0][1]-ay2) < 1e-6 &&
+          Math.hypot(pieces[0][2]-bx2, pieces[0][3]-by2) < 1e-6;
+        if (pieces.length && !fullSegInside) anyTrimmed = true;
+        for (const [sx, sy, ex, ey] of pieces) { addRowFromLocalPts([[sx, sy], [ex, ey]]); anyKept = true; }
+      }
+      if (!anyKept) break;
+      added++; if (anyTrimmed) trimmed++;
+    }
+    return {added, trimmed};
+  }
+
+  const side1 = fillDirection(1);
+  const side2 = fillDirection(-1);
+  const added = side1.added + side2.added;
+  const trimmed = side1.trimmed + side2.trimmed;
+
+  renderRowsList();
+  refreshLocationDependent();
+  let msg = added
+    ? 'Kept the last row as the template, removed the rest, and filled the boundary with ' + added + ' row(s) on both sides at ' + spacing + ' m spacing.'
+    : 'No additional rows fit inside the boundary at this spacing — only the template row remains.';
+  if (trimmed) msg += ' ' + trimmed + ' trimmed to fit the outline.';
+  setStatus(msg, added ? 'ok' : 'err');
+});
+
+/* Row GeoJSON export/import */
+document.getElementById('exportGeoJsonBtn').addEventListener('click', () => {
+  if (!state.rows.length) { setStatus('No rows to export.', 'err'); return; }
+  const fc = {
+    type: 'FeatureCollection',
+    features: state.rows.map(r => ({
+      type: 'Feature',
+      properties: {height: r.height, thickness: r.thickness},
+      geometry: {type: 'LineString', coordinates: r.latlngs.map(p => [p.lng, p.lat])}
+    }))
+  };
+  downloadBlob(new Blob([JSON.stringify(fc, null, 2)], {type:'application/json'}), 'panel_rows.geojson');
+});
+
+document.getElementById('importGeoJson').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const fc = JSON.parse(reader.result);
+      const defH = parseFloat(document.getElementById('defaultHeight').value) || 3;
+      const defT = parseFloat(document.getElementById('defaultThickness').value) || 0;
+      (fc.features || []).forEach(f => {
+        if (!f.geometry || f.geometry.type !== 'LineString') return;
+        const latlngs = f.geometry.coordinates.map(c => L.latLng(c[1], c[0]));
+        const color = PALETTE[state.rows.length % PALETTE.length];
+        const height = (f.properties && f.properties.height) || defH;
+        const thickness = (f.properties && f.properties.thickness != null) ? f.properties.thickness : defT;
+        const layer = L.polyline(latlngs, {color, weight:5, opacity:0.95}).addTo(rowsLayerGroup);
+        state.rows.push({id: state.nextRowId++, latlngs: latlngs.map(p=>({lat:p.lat,lng:p.lng})), height, thickness, layer, color});
+      });
+      renderRowsList(); refreshLocationDependent();
+      if (state.rows.length) map.fitBounds(rowsLayerGroup.getBounds(), {maxZoom:19});
+      setStatus('Imported ' + (fc.features||[]).length + ' row(s).', 'ok');
+    } catch (err) { setStatus('Import failed: ' + err.message, 'err'); }
+    e.target.value = '';
+  };
+  reader.readAsText(file);
+});
+
+/* ============================== Geometry helpers ============================== */
+function makeProjector(lat0) {
+  const mPerDegLat = 110540;
+  const mPerDegLon = 111320 * Math.cos(lat0 * DEG2RAD);
+  return {
+    toLocal(lat, lon) { return [(lon - projLon0) * mPerDegLon, (lat - lat0) * mPerDegLat]; },
+    toLatLon(x, y) { return [lat0 + y / mPerDegLat, projLon0 + x / mPerDegLon]; },
+    mPerDegLat, mPerDegLon
+  };
+}
+let projLon0 = 0;
+
+function rowsCentroid() {
+  if (state.rows.length) { let sLat=0,sLon=0,n=0; state.rows.forEach(r=>r.latlngs.forEach(p=>{sLat+=p.lat;sLon+=p.lng;n++;})); return [sLat/n, sLon/n]; }
+  if (state.boundary) return boundaryCentroid();
+  const c = map.getCenter(); return [c.lat, c.lng];
+}
+function boundaryCentroid() {
+  let sLat=0,sLon=0,n=0; state.boundary.latlngs.forEach(p=>{sLat+=p.lat;sLon+=p.lng;n++;});
+  return [sLat/n, sLon/n];
+}
+
+function segmentsFromRows(proj) {
+  const segments = [];
+  state.rows.forEach(row => {
+    const pts = row.latlngs.map(p => proj.toLocal(p.lat, p.lng));
+    for (let i = 0; i < pts.length - 1; i++) {
+      const [ax,ay] = pts[i], [bx,by] = pts[i+1];
+      if (ax===bx && ay===by) continue;
+      segments.push({ax,ay,bx,by,height:row.height, thickness: row.thickness||0});
+    }
+  });
+  return segments;
+}
+
+function convexHull(points) {
+  const pts = points.slice().sort((a,b)=> a[0]-b[0] || a[1]-b[1]);
+  if (pts.length<=2) return pts;
+  const cross=(o,a,b)=>(a[0]-o[0])*(b[1]-o[1])-(a[1]-o[1])*(b[0]-o[0]);
+  const lower=[];
+  for (const p of pts){ while(lower.length>=2 && cross(lower[lower.length-2],lower[lower.length-1],p)<=0) lower.pop(); lower.push(p); }
+  const upper=[];
+  for (let i=pts.length-1;i>=0;i--){ const p=pts[i]; while(upper.length>=2 && cross(upper[upper.length-2],upper[upper.length-1],p)<=0) upper.pop(); upper.push(p); }
+  upper.pop(); lower.pop();
+  return lower.concat(upper);
+}
+
+// Shadow of a (possibly thick) wall segment = convex hull of its footprint
+// rectangle union that footprint translated by the shadow vector (Minkowski sweep).
+//
+// Fixed-tilt mode generalizes this to a tilted planar row instead of a vertical
+// wall: the row's drawn line is the LOW (front) edge at height = groundClearance,
+// and the HIGH (back) edge sits collectorWidth away, offset horizontally by
+// collectorWidth*cos(tilt) toward the back-azimuth (panelAzimuth + 180deg) and
+// raised by collectorWidth*sin(tilt). Each of those 4 corners is then projected
+// onto the ground along the sun ray (same shadow-offset formula as the vertical
+// case, applied per-corner instead of just at the top). Because that projection
+// is an affine map, a flat rectangle's shadow is exactly the quad formed by the
+// 4 projected corners -- convexHull just guarantees a clean simple polygon.
+// Setting tilt=90deg collapses this back to exactly the vertical-wall case.
+function buildShadowPolygons(segments, az, altitude, opts) {
+  opts = opts || {};
+  const panelType = opts.panelType || 'vertical';
+  const polys = [];
+  for (const seg of segments) {
+    const dxSeg = seg.bx-seg.ax, dySeg = seg.by-seg.ay;
+    const len = Math.hypot(dxSeg,dySeg) || 0.0001;
+    let hull;
+    if (panelType === 'tilt') {
+      const tiltRad = opts.tiltRad, backAz = opts.panelAzRad + Math.PI;
+      const clearance = opts.groundClearance || 0;
+      const backOffX = seg.height * Math.cos(tiltRad) * Math.sin(backAz);
+      const backOffY = seg.height * Math.cos(tiltRad) * Math.cos(backAz);
+      const topZ = clearance + seg.height * Math.sin(tiltRad);
+      const shadowXY = (x, y, z) => {
+        const Lm = z / Math.tan(altitude);
+        return [x + Lm * Math.sin(az), y + Lm * Math.cos(az)];
+      };
+      const corners3D = [
+        [seg.ax, seg.ay, clearance], [seg.bx, seg.by, clearance],
+        [seg.bx + backOffX, seg.by + backOffY, topZ], [seg.ax + backOffX, seg.ay + backOffY, topZ]
+      ];
+      hull = convexHull(corners3D.map(([x,y,z]) => shadowXY(x,y,z)));
+    } else {
+      const perpx = -dySeg/len, perpy = dxSeg/len;
+      const t2 = (seg.thickness||0)/2;
+      const corners = [
+        [seg.ax+perpx*t2, seg.ay+perpy*t2], [seg.bx+perpx*t2, seg.by+perpy*t2],
+        [seg.bx-perpx*t2, seg.by-perpy*t2], [seg.ax-perpx*t2, seg.ay-perpy*t2]
+      ];
+      const Lm = seg.height / Math.tan(altitude);
+      const dx = Lm * Math.sin(az), dy = Lm * Math.cos(az);
+      const swept = corners.concat(corners.map(([x,y]) => [x+dx, y+dy]));
+      hull = convexHull(swept);
+    }
+    let pMinX=Infinity,pMaxX=-Infinity,pMinY=Infinity,pMaxY=-Infinity;
+    for (const [x,y] of hull) { if(x<pMinX)pMinX=x; if(x>pMaxX)pMaxX=x; if(y<pMinY)pMinY=y; if(y>pMaxY)pMaxY=y; }
+    polys.push({pts: hull, bbox:[pMinX,pMaxX,pMinY,pMaxY]});
+  }
+  return polys;
+}
+
+function pointInPolygon(px, py, poly) {
+  let inside = false;
+  for (let i=0, j=poly.length-1; i<poly.length; j=i++) {
+    const xi=poly[i][0], yi=poly[i][1], xj=poly[j][0], yj=poly[j][1];
+    const intersect = ((yi>py) !== (yj>py)) && (px < (xj-xi)*(py-yi)/(yj-yi)+xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+// Clip a line segment A-B against a (possibly non-convex) simple polygon.
+// Returns an array of [x1,y1,x2,y2] sub-segments — the parts of A-B that lie inside.
+function clipSegmentToPolygon(ax, ay, bx, by, poly) {
+  const dx = bx - ax, dy = by - ay;
+  let ts = [0, 1];
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [x1, y1] = poly[j], [x2, y2] = poly[i];
+    const ex = x2 - x1, ey = y2 - y1;
+    const denom = dx * ey - dy * ex;
+    if (Math.abs(denom) < 1e-9) continue;
+    const t = ((x1 - ax) * ey - (y1 - ay) * ex) / denom;
+    const u = ((x1 - ax) * dy - (y1 - ay) * dx) / denom;
+    if (t >= -1e-9 && t <= 1 + 1e-9 && u >= -1e-9 && u <= 1 + 1e-9) ts.push(Math.min(1, Math.max(0, t)));
+  }
+  ts = [...new Set(ts.map(t => Math.round(t * 1e9) / 1e9))].sort((a, b) => a - b);
+  const segs = [];
+  for (let i = 0; i < ts.length - 1; i++) {
+    const t0 = ts[i], t1 = ts[i + 1];
+    if (t1 - t0 < 1e-9) continue;
+    const tm = (t0 + t1) / 2;
+    if (pointInPolygon(ax + dx * tm, ay + dy * tm, poly)) {
+      segs.push([ax + dx * t0, ay + dy * t0, ax + dx * t1, ay + dy * t1]);
+    }
+  }
+  return segs;
+}
+
+function shadowedCellIndices(polys, xmin, ymax, cellSize, cols, rowsN) {
+  const result = [];
+  if (!polys.length) return result;
+  let bMinX=Infinity,bMaxX=-Infinity,bMinY=Infinity,bMaxY=-Infinity;
+  for (const p of polys) {
+    if (p.bbox[0]<bMinX) bMinX=p.bbox[0]; if (p.bbox[1]>bMaxX) bMaxX=p.bbox[1];
+    if (p.bbox[2]<bMinY) bMinY=p.bbox[2]; if (p.bbox[3]>bMaxY) bMaxY=p.bbox[3];
+  }
+  const cMin = Math.max(0, Math.floor((bMinX-xmin)/cellSize));
+  const cMax = Math.min(cols-1, Math.ceil((bMaxX-xmin)/cellSize));
+  const rMin = Math.max(0, Math.floor((ymax-bMaxY)/cellSize));
+  const rMax = Math.min(rowsN-1, Math.ceil((ymax-bMinY)/cellSize));
+  for (let r = rMin; r <= rMax; r++) {
+    const yc = ymax - (r+0.5)*cellSize;
+    const rowBase = r*cols;
+    for (let c = cMin; c <= cMax; c++) {
+      const xc = xmin + (c+0.5)*cellSize;
+      for (const poly of polys) {
+        const bb = poly.bbox;
+        if (xc<bb[0]||xc>bb[1]||yc<bb[2]||yc>bb[3]) continue;
+        if (pointInPolygon(xc, yc, poly.pts)) { result.push(rowBase + c); break; }
+      }
+    }
+  }
+  return result;
+}
+
+// Instantaneous power (W) across all segments at one sun position, shading-aware.
+//
+// Vertical mode (unchanged): a vertical bifacial wall's incidence factor is
+// |normal . sunBearing| * cos(altitude) -- both faces catch direct beam.
+//
+// Fixed-tilt mode: general plane-of-array incidence formula
+//   cos(theta) = sin(alt)*cos(tilt) + cos(alt)*sin(tilt)*cos(sunAz - panelAz)
+// (this is the standard fixed-tilt POA formula; note it reduces to exactly the
+// vertical-mode formula above when tilt=90deg). Only the front face sees direct
+// beam (clamped to 0 when the sun is behind the panel); the existing bifacial
+// "back factor" still applies to the rear-side diffuse contribution, using a
+// sky-view factor (1+cos(tilt))/2 that also reduces to the vertical case's 0.5.
+function segmentsPowerW(segments, pos, cs, polys, moduleEff, sysLoss, backFactor, opts) {
+  opts = opts || {};
+  const panelType = opts.panelType || 'vertical';
+  const compassAz = pos.azimuth + Math.PI;
+  const sinAz = Math.sin(compassAz), cosAz = Math.cos(compassAz);
+  const cosAlt = Math.cos(pos.altitude);
+  const diffuseH = Math.max(0, cs.GHI - cs.Ibn*Math.sin(pos.altitude));
+
+  let cosTilt, sinTilt, sinSurfAz, cosSurfAz, skyView;
+  if (panelType === 'tilt') {
+    cosTilt = Math.cos(opts.tiltRad); sinTilt = Math.sin(opts.tiltRad);
+    sinSurfAz = Math.sin(opts.panelAzRad); cosSurfAz = Math.cos(opts.panelAzRad);
+    skyView = (1 + cosTilt) / 2;
+  }
+
+  let totalW = 0;
+  for (let k = 0; k < segments.length; k++) {
+    const seg = segments[k];
+    const dxSeg=seg.bx-seg.ax, dySeg=seg.by-seg.ay;
+    const len=Math.hypot(dxSeg,dySeg)||0.0001;
+    let incidenceFactor, poaDiffuseSurf;
+    if (panelType === 'tilt') {
+      const cosIncidence = Math.sin(pos.altitude)*cosTilt + cosAlt*sinTilt*(sinAz*sinSurfAz + cosAz*cosSurfAz);
+      incidenceFactor = Math.max(0, cosIncidence);
+      poaDiffuseSurf = diffuseH * skyView;
+    } else {
+      const nx=-dySeg/len, ny=dxSeg/len;
+      incidenceFactor = Math.abs(nx*sinAz+ny*cosAz) * cosAlt;
+      poaDiffuseSurf = 0.5*diffuseH;
+    }
+    const poaDirect = Math.max(0, cs.Ibn*incidenceFactor);
+    const poaTotal = poaDirect + (1+backFactor)*poaDiffuseSurf;
+    const midx=(seg.ax+seg.bx)/2, midy=(seg.ay+seg.by)/2;
+    let shadowed=false;
+    // Skip the segment's own shadow polygon: its footprint always contains its own
+    // midpoint, which would otherwise flag every segment as permanently self-shadowed
+    // (this was the bug behind energy always reading zero). Only OTHER rows can shade it.
+    for (let j = 0; j < polys.length; j++) {
+      if (j === k) continue;
+      const bb = polys[j].bbox;
+      if (midx>=bb[0]&&midx<=bb[1]&&midy>=bb[2]&&midy<=bb[3]&&pointInPolygon(midx,midy,polys[j].pts)) { shadowed=true; break; }
+    }
+    const areaSeg = len*seg.height;
+    const effPOA = shadowed?0:poaTotal;
+    totalW += effPOA*areaSeg*moduleEff*(1-sysLoss);
+  }
+  return totalW;
+}
+
+/* ============================== Local time handling ============================== */
+function getOffset() {
+  const v = parseFloat(document.getElementById('utcOffsetInput').value);
+  return isNaN(v) ? 0 : v;
+}
+function offsetLabelText(off) {
+  const o = (off===undefined) ? getOffset() : off;
+  return 'UTC' + (o>=0 ? '+' : '') + o;
+}
+function localMinutesToUTCDate(dateStr, minutes, offsetHours) {
+  const [y,m,d] = dateStr.split('-').map(Number);
+  const localMidnightAsUTC = Date.UTC(y, m-1, d, 0, 0, 0);
+  return new Date(localMidnightAsUTC - offsetHours*3600000 + minutes*60000);
+}
+function utcToLocalShifted(date, offsetHours) { return new Date(date.getTime() + offsetHours*3600000); }
+function fmtLocal(date, offsetHours) {
+  if (!date || isNaN(date.getTime())) return 'n/a';
+  const s = utcToLocalShifted(date, offsetHours);
+  return s.getUTCHours().toString().padStart(2,'0') + ':' + s.getUTCMinutes().toString().padStart(2,'0');
+}
+function guessOffsetFromLon(lon) { return Math.round((lon/15)*4)/4; }
+function timeStrToMinutes(s) { const [h,m] = s.split(':').map(Number); return h*60+m; }
+
+/* ============================== Date/time controls ============================== */
+const dateInput = document.getElementById('dateInput');
+const timeSlider = document.getElementById('timeSlider');
+const timeLabel = document.getElementById('timeLabel');
+const utcOffsetInput = document.getElementById('utcOffsetInput');
+
+(function initDate() {
+  const now = new Date();
+  const todayStr = now.toISOString().slice(0,10);
+  dateInput.value = todayStr;
+  document.getElementById('rangeStart').value = todayStr;
+  const end = new Date(now.getTime() + 6*86400000);
+  document.getElementById('rangeEnd').value = end.toISOString().slice(0,10);
+})();
+
+function minutesToHHMM(min) {
+  const h = Math.floor(min/60).toString().padStart(2,'0');
+  const m = Math.floor(min%60).toString().padStart(2,'0');
+  return h+':'+m;
+}
+
+utcOffsetInput.addEventListener('input', () => { state.utcOffsetAuto = false; updatePreview(); updateSunTimes(); });
+document.getElementById('utcOffsetAutoBtn').addEventListener('click', () => {
+  const [,lon] = rowsCentroid();
+  utcOffsetInput.value = guessOffsetFromLon(lon);
+  state.utcOffsetAuto = true;
+  updatePreview(); updateSunTimes();
+});
+
+function updateSunTimes() {
+  const [lat, lon] = rowsCentroid();
+  const off = getOffset();
+  const d = localMinutesToUTCDate(dateInput.value, 0, off);
+  const t = SunCalc.getTimes(d, lat, lon);
+  const el = document.getElementById('sunTimesInfo');
+  el.textContent = 'At ' + lat.toFixed(4) + ', ' + lon.toFixed(4) + ' — sunrise ' + fmtLocal(t.sunrise, off) +
+    ' · solar noon ' + fmtLocal(t.solarNoon, off) + ' · sunset ' + fmtLocal(t.sunset, off) + ' (local)';
+}
+
+function refreshLocationDependent() {
+  if (state.utcOffsetAuto) { const [,lon] = rowsCentroid(); utcOffsetInput.value = guessOffsetFromLon(lon); }
+  updateSunTimes();
+  updateGridInfo();
+  updatePreview();
+}
+
+dateInput.addEventListener('change', () => { updateSunTimes(); updatePreview(); updateGridInfo(); });
+map.on('moveend', () => { if (!state.rows.length && !state.boundary) refreshLocationDependent(); });
+
+/* ============================== Shadow preview (live) ============================== */
+// Shared read of the power-model inputs (Advanced settings), used both by the
+// live instant-power readout and by the full simulation.
+function getPowerParams() {
+  return {
+    moduleEff: Math.max(0, (parseFloat(document.getElementById('moduleEff').value)||20)/100),
+    sysLoss: Math.max(0, Math.min(0.9, (parseFloat(document.getElementById('sysLoss').value)||14)/100)),
+    backFactor: Math.max(0, parseFloat(document.getElementById('backFactor').value)||0.7)
+  };
+}
+
+function updatePreview() {
+  timeLabel.textContent = minutesToHHMM(+timeSlider.value);
+  document.getElementById('offsetLabel').textContent = offsetLabelText();
+  state.previewLayer.clearLayers();
+  const infoEl = document.getElementById('previewInfo');
+  const powerEl = document.getElementById('instantPowerInfo');
+  if (!state.rows.length) { infoEl.textContent = 'Draw at least one row to preview shadows.'; powerEl.textContent = '—'; return; }
+
+  const off = getOffset();
+  const d = localMinutesToUTCDate(dateInput.value, +timeSlider.value, off);
+  const [lat0, lon0] = rowsCentroid();
+  projLon0 = lon0;
+  const proj = makeProjector(lat0);
+  const pos = SunCalc.getPosition(d, lat0, lon0);
+  const minElevRad = (parseFloat(document.getElementById('minElevation').value)||3) * DEG2RAD;
+
+  if (pos.altitude <= Math.max(0, minElevRad)) {
+    infoEl.textContent = 'Sun below the minimum-elevation threshold at ' + minutesToHHMM(+timeSlider.value) + ' local — no shadows to show.';
+    powerEl.textContent = 'Instantaneous panel power: 0.00 kW (sun below threshold).';
+    return;
+  }
+
+  const segments = segmentsFromRows(proj);
+  const panelOpts = currentPanelOpts();
+  const polys = buildShadowPolygons(segments, pos.azimuth, pos.altitude, panelOpts);
+  polys.forEach(poly => {
+    const latlon = poly.pts.map(([x,y]) => proj.toLatLon(x,y));
+    L.polygon(latlon, {color:'#000', weight:1, fillColor:'#000', fillOpacity:0.45, stroke:false}).addTo(state.previewLayer);
+  });
+
+  // Live instant power: same clear-sky + shading-aware model used by the full
+  // simulation's "instant" mode, recomputed here on every date/time change so
+  // it works for both the vertical-wall and fixed-tilt panel types.
+  const cs = clearSkyIrradiance(d, pos.altitude);
+  const {moduleEff, sysLoss, backFactor} = getPowerParams();
+  const powerW = segmentsPowerW(segments, pos, cs, polys, moduleEff, sysLoss, backFactor, panelOpts);
+  powerEl.textContent = 'Instantaneous panel power: ' + fmtNum(powerW/1000,2) + ' kW (' +
+    (panelOpts.panelType === 'tilt' ? 'fixed tilt' : 'vertical') + ', clear-sky GHI ' + fmtNum(cs.GHI,0) + ' W/m²).';
+
+  const compassSunDeg = ((pos.azimuth/DEG2RAD)+180+360)%360;
+  infoEl.textContent = 'Sun altitude ' + (pos.altitude/DEG2RAD).toFixed(1) + '° · sun compass bearing ' + compassSunDeg.toFixed(0) +
+    '° · shadow points toward ' + ((pos.azimuth/DEG2RAD+360)%360).toFixed(0) + '° at ' + minutesToHHMM(+timeSlider.value) +
+    ' local (' + offsetLabelText(off) + ')' +
+    (panelOpts.panelType === 'tilt' ? (' · panel tilt ' + (panelOpts.tiltRad/DEG2RAD).toFixed(0) + '° facing ' + (panelOpts.panelAzRad/DEG2RAD).toFixed(0) + '°') : '');
+}
+timeSlider.addEventListener('input', updatePreview);
+
+/* ============================== Mode toggles ============================== */
+document.querySelectorAll('input[name=dateMode]').forEach(r => r.addEventListener('change', () => {
+  document.getElementById('dateRangeBox').classList.toggle('hidden', document.querySelector('input[name=dateMode]:checked').value !== 'range');
+  updateGridInfo();
+}));
+document.querySelectorAll('input[name=timeMode]').forEach(r => r.addEventListener('change', () => {
+  document.getElementById('timeRangeBox').classList.toggle('hidden', document.querySelector('input[name=timeMode]:checked').value !== 'range');
+  updateGridInfo();
+}));
+['rangeStart','rangeEnd','rangeStartTime','rangeEndTime','timeStepSelect'].forEach(id => document.getElementById(id).addEventListener('input', updateGridInfo));
+
+/* ============================== Clear-sky irradiance model ============================== */
+function dayOfYear(date) { const start = Date.UTC(date.getUTCFullYear(), 0, 1); return Math.floor((date.getTime() - start) / 86400000) + 1; }
+function extraterrestrialNormal(date) { const n = dayOfYear(date); return 1367 * (1 + 0.033 * Math.cos(2*Math.PI*n/365)); }
+function clearSkyIrradiance(date, altitudeRad) {
+  const s = Math.sin(altitudeRad);
+  if (s <= 0) return {G0: 0, GHI: 0, Ibn: 0};
+  const Gon = extraterrestrialNormal(date);
+  const G0 = Gon * s;
+  const hDeg = altitudeRad / DEG2RAD;
+  const AM = 1 / (s + 0.50572 * Math.pow(hDeg + 6.07995, -1.6364));
+  const taub = Math.pow(0.7, Math.pow(AM, 0.678));
+  const Ibn = Gon * taub;
+  const GHI = Math.min(Ibn * s * 1.10, G0);
+  return {G0, GHI, Ibn};
+}
+
+/* ============================== Grid sizing ============================== */
+const MAX_CELLS = 45000;
+const MAX_PRODUCT = 2.5e8;
+
+function computeGridPlan() {
+  const hasBoundary = !!state.boundary;
+  if (!state.rows.length && !hasBoundary) return null;
+  const [lat0, lon0] = hasBoundary ? boundaryCentroid() : rowsCentroid();
+  projLon0 = lon0;
+  const proj = makeProjector(lat0);
+  const minElevDeg = parseFloat(document.getElementById('minElevation').value) || 3;
+  const minElevRad = minElevDeg * DEG2RAD;
+  const isTiltMode = state.panelType === 'tilt';
+  const tiltRadPlan = isTiltMode ? tiltRadFromUI() : 0;
+  const clearancePlan = isTiltMode ? groundClearanceFromUI() : 0;
+  // maxH is the effective VERTICAL extent used to size the shadow buffer. For
+  // fixed-tilt rows the physical structure also reaches out horizontally by
+  // height*cos(tilt) (the back-edge setback), which the buffer needs too.
+  let maxH = 0, maxBackReach = 0;
+  state.rows.forEach(r => {
+    const effH = isTiltMode ? (clearancePlan + r.height * Math.sin(tiltRadPlan)) : r.height;
+    maxH = Math.max(maxH, effH);
+    if (isTiltMode) maxBackReach = Math.max(maxBackReach, r.height * Math.cos(tiltRadPlan));
+  });
+
+  let xmin, xmax, ymin, ymax, buffer = 0, autoBuffer = 0, boundaryLocal = null;
+  if (hasBoundary) {
+    boundaryLocal = state.boundary.latlngs.map(p => proj.toLocal(p.lat, p.lng));
+    let bx0=Infinity,bx1=-Infinity,by0=Infinity,by1=-Infinity;
+    boundaryLocal.forEach(([x,y]) => { if(x<bx0)bx0=x; if(x>bx1)bx1=x; if(y<by0)by0=y; if(y>by1)by1=y; });
+    xmin=bx0; xmax=bx1; ymin=by0; ymax=by1;
+  } else {
+    let minLat=Infinity,maxLat=-Infinity,minLon=Infinity,maxLon=-Infinity;
+    state.rows.forEach(r => r.latlngs.forEach(p => {
+      minLat=Math.min(minLat,p.lat); maxLat=Math.max(maxLat,p.lat);
+      minLon=Math.min(minLon,p.lng); maxLon=Math.max(maxLon,p.lng);
+    }));
+    autoBuffer = Math.min(500, Math.max(10, maxH / Math.tan(minElevRad) + maxBackReach));
+    const bufVal = document.getElementById('bufferInput').value;
+    buffer = bufVal !== '' ? Math.max(0, parseFloat(bufVal)) : autoBuffer;
+    const [x0,y0] = proj.toLocal(minLat, minLon);
+    const [x1,y1] = proj.toLocal(maxLat, maxLon);
+    xmin = Math.min(x0,x1) - buffer; xmax = Math.max(x0,x1) + buffer;
+    ymin = Math.min(y0,y1) - buffer; ymax = Math.max(y0,y1) + buffer;
+  }
+
+  const cellSize = Math.max(0.1, parseFloat(document.getElementById('cellSize').value) || 2);
+  const cols = Math.max(1, Math.ceil((xmax-xmin)/cellSize));
+  const rowsN = Math.max(1, Math.ceil((ymax-ymin)/cellSize));
+
+  return {lat0, lon0, proj, xmin, ymin, xmax: xmin+cols*cellSize, ymax: ymin+rowsN*cellSize, cols, rowsN, cellSize, buffer, autoBuffer, minElevRad, maxH, boundaryLocal, hasBoundary};
+}
+
+function enumerateLocalDates(startStr, endStr) {
+  const out = [];
+  let d = new Date(startStr + 'T00:00:00Z');
+  const end = new Date(endStr + 'T00:00:00Z');
+  if (end < d) return out;
+  while (d <= end) { out.push(d.toISOString().slice(0,10)); d = new Date(d.getTime() + 86400000); }
+  return out;
+}
+
+function getDateList() {
+  const isRange = document.querySelector('input[name=dateMode]:checked').value === 'range';
+  return isRange ? enumerateLocalDates(document.getElementById('rangeStart').value, document.getElementById('rangeEnd').value) : [dateInput.value];
+}
+function getTimeWindow() {
+  const isRange = document.querySelector('input[name=timeMode]:checked').value === 'range';
+  if (!isRange) return {isRange:false, minutes:[+timeSlider.value]};
+  let s = timeStrToMinutes(document.getElementById('rangeStartTime').value);
+  let e = timeStrToMinutes(document.getElementById('rangeEndTime').value);
+  if (s > e) { const tmp=s; s=e; e=tmp; }
+  const step = parseInt(document.getElementById('timeStepSelect').value, 10);
+  const list = [];
+  for (let m = s; m <= e; m += step) list.push(m);
+  return {isRange:true, minutes:list, step};
+}
+
+function updateGridInfo() {
+  const el = document.getElementById('gridInfo');
+  if (!state.boundary) { el.textContent = 'Draw a field boundary — required before running a simulation.'; el.className = 'warn'; return; }
+  const plan = computeGridPlan();
+  if (!plan) { el.textContent = 'Draw at least one row to size the grid.'; el.className=''; return; }
+  const n = plan.cols * plan.rowsN;
+  let txt = 'Grid: ' + plan.cols + ' × ' + plan.rowsN + ' = ' + n.toLocaleString() + ' cells (clipped to boundary)';
+  let warn = n > MAX_CELLS;
+  const days = getDateList();
+  const tw = getTimeWindow();
+  const samplesPerDay = tw.isRange ? tw.minutes.length : 1;
+  const totalIter = days.length * samplesPerDay;
+  txt += '\n' + days.length + ' day(s) × ' + samplesPerDay + ' sample(s)/day = ' + totalIter.toLocaleString() + ' time samples.';
+  const product = totalIter * n;
+  if (product > MAX_PRODUCT) { warn = true; txt += '\nToo much work — increase cell size/time step or shrink the range.'; }
+  if (n > MAX_CELLS) txt += '\nGrid itself has too many cells — increase cell size.';
+  el.textContent = txt;
+  el.className = warn ? 'warn' : '';
+}
+['minElevation','cellSize','bufferInput'].forEach(id => document.getElementById(id).addEventListener('input', updateGridInfo));
+updateGridInfo();
+
+/* ============================== Main compute ============================== */
+document.getElementById('computeBtn').addEventListener('click', runCompute);
+
+async function runCompute() {
+  if (!state.boundary) { setStatus('A field boundary is required to run a simulation. Draw one first (see "Draw field boundaries" above).', 'err'); return; }
+  if (!state.rows.length) { setStatus('Draw at least one row first.', 'err'); return; }
+  const plan = computeGridPlan();
+  if (!plan) { setStatus('Draw at least one row first.', 'err'); return; }
+  const total = plan.cols * plan.rowsN;
+  if (total > MAX_CELLS) { setStatus('Grid too large (' + total.toLocaleString() + ' cells). Increase cell size.', 'err'); return; }
+
+  const days = getDateList();
+  if (!days.length) { setStatus('Invalid date range.', 'err'); return; }
+  const tw = getTimeWindow();
+  const offsetHours = getOffset();
+  const {moduleEff, sysLoss, backFactor} = getPowerParams();
+
+  const isInstant = days.length === 1 && !tw.isRange;
+  const totalIter = days.length * (tw.isRange ? tw.minutes.length : 1);
+  if (!isInstant && totalIter * total > MAX_PRODUCT) { setStatus('Too much work for this grid/range — increase cell size, coarsen the time step, or shrink the range.', 'err'); return; }
+
+  const computeBtn = document.getElementById('computeBtn');
+  computeBtn.disabled = true;
+  const progressWrap = document.getElementById('progressWrap');
+  const progressBar = document.getElementById('progressBar');
+  progressWrap.classList.remove('hidden');
+  progressBar.style.width = '0%';
+
+  const {proj, xmin, ymin, xmax, ymax, cols, rowsN, cellSize, minElevRad, boundaryLocal} = plan;
+  const segments = segmentsFromRows(proj);
+  const panelOpts = currentPanelOpts();
+  const t0 = performance.now();
+
+  function maskOutsideBoundary(arr) {
+    if (!boundaryLocal) return;
+    for (let r=0;r<rowsN;r++){
+      const yc = ymax-(r+0.5)*cellSize; const base=r*cols;
+      for (let c=0;c<cols;c++){
+        const xc = xmin+(c+0.5)*cellSize;
+        if (!pointInPolygon(xc, yc, boundaryLocal)) arr[base+c] = NaN;
+      }
+    }
+  }
+
+  let result;
+
+  if (isInstant) {
+    const d = localMinutesToUTCDate(days[0], tw.minutes[0], offsetHours);
+    const pos = SunCalc.getPosition(d, plan.lat0, plan.lon0);
+    const litGrid = new Float32Array(total);
+    const irrGrid = new Float32Array(total);
+    let g0=0, ghi=0, powerW=0;
+    if (pos.altitude > minElevRad) {
+      const cs = clearSkyIrradiance(d, pos.altitude);
+      g0 = cs.G0; ghi = cs.GHI;
+      litGrid.fill(1); irrGrid.fill(ghi);
+      const polys = buildShadowPolygons(segments, pos.azimuth, pos.altitude, panelOpts);
+      const shaded = shadowedCellIndices(polys, xmin, ymax, cellSize, cols, rowsN);
+      for (const idx of shaded) { litGrid[idx] = 0; irrGrid[idx] = 0; }
+      powerW = segmentsPowerW(segments, pos, cs, polys, moduleEff, sysLoss, backFactor, panelOpts);
+    }
+    maskOutsideBoundary(litGrid); maskOutsideBoundary(irrGrid);
+    progressBar.style.width = '100%';
+    let minB=Infinity,maxB=-Infinity;
+    for (let i=0;i<total;i++){ if(!Number.isNaN(irrGrid[i])){ if(irrGrid[i]<minB)minB=irrGrid[i]; if(irrGrid[i]>maxB)maxB=irrGrid[i]; } }
+    if (!isFinite(minB)) { minB=0; maxB=0; }
+    result = {
+      mode:'instant', cols, rowsN,
+      west: proj.toLatLon(xmin, ymin)[1], north: proj.toLatLon(xmin, ymax)[0],
+      south: proj.toLatLon(xmin, ymin)[0], east: proj.toLatLon(xmax, ymin)[1],
+      pixelSizeXdeg: cellSize/proj.mPerDegLon, pixelSizeYdeg: cellSize/proj.mPerDegLat,
+      gridA: litGrid, labelA: 'Sun / Shadow', unitA: '(1=lit,0=shadow)', minA:0, maxA:1,
+      gridB: irrGrid, labelB: 'Clear-sky irradiance', unitB: 'W/m²', minB, maxB,
+      fileTag: days[0] + '_' + minutesToHHMM(tw.minutes[0]).replace(':','') + 'local',
+      energyLabel: 'Instantaneous panel power', energyValue: fmtNum(powerW/1000,2) + ' kW',
+      diurnalSeries: null, dailySeries: null, dailyKind: null,
+      summary: pos.altitude>minElevRad
+        ? ('Sun altitude ' + fmtNum(pos.altitude/DEG2RAD,1) + '° · extraterrestrial ' + fmtNum(g0,0) + ' W/m² · clear-sky GHI ' + fmtNum(ghi,0) + ' W/m² · panel power ' + fmtNum(powerW/1000,2) + ' kW.')
+        : 'Sun below the minimum elevation threshold at this time.'
+    };
+  } else {
+    const stepMin = tw.isRange ? tw.step : 60; // when time is a single instant per day, treat as a point sample
+    const stepHours = stepMin/60;
+    const sunHours = new Float32Array(total);
+    const intensity = new Float32Array(total);
+    let g0Total = 0, energyWh = 0, litDayCount = 0, irrSampleSum = 0, sampleCount = 0, theoreticalMaxHours = 0;
+    let processed = 0, lastYield = performance.now();
+    const diurnalMap = new Map();  // minute-of-day -> {powerSum, irrSum, shadedSum, n}  (hour-by-hour profile)
+    const dailyMap = new Map();    // day -> {valSum, irrSum, shadedSum, n}               (day-by-day profile)
+
+    for (const day of days) {
+      const minutesList = tw.isRange ? tw.minutes : [tw.minutes[0]];
+      if (!dailyMap.has(day)) dailyMap.set(day, {valSum:0, irrSum:0, shadedSum:0, n:0});
+      const dayRec = dailyMap.get(day);
+      for (const m of minutesList) {
+        const d = localMinutesToUTCDate(day, m, offsetHours);
+        const pos = SunCalc.getPosition(d, plan.lat0, plan.lon0);
+        sampleCount++;
+        if (pos.altitude > minElevRad) {
+          const cs = clearSkyIrradiance(d, pos.altitude);
+          g0Total += cs.G0 * stepHours;
+          if (tw.isRange) theoreticalMaxHours += stepHours;
+          const polys = buildShadowPolygons(segments, pos.azimuth, pos.altitude, panelOpts);
+          let shadedCount = 0, powerW = 0;
+          if (tw.isRange) {
+            for (let i = 0; i < total; i++) { sunHours[i] += stepHours; intensity[i] += cs.GHI * stepHours; }
+            const shaded = shadowedCellIndices(polys, xmin, ymax, cellSize, cols, rowsN);
+            for (const idx of shaded) { sunHours[idx] -= stepHours; intensity[idx] -= cs.GHI * stepHours; }
+            powerW = segmentsPowerW(segments, pos, cs, polys, moduleEff, sysLoss, backFactor, panelOpts);
+            energyWh += powerW * stepHours;
+            shadedCount = shaded.length;
+          } else {
+            // single fixed local time, sampled once per day across a date range
+            litDayCount++;
+            irrSampleSum += cs.GHI;
+            const shadedIdx = shadowedCellIndices(polys, xmin, ymax, cellSize, cols, rowsN);
+            const shadedSet = new Set(shadedIdx);
+            for (let i = 0; i < total; i++) { if (!shadedSet.has(i)) { sunHours[i] += 1; intensity[i] += cs.GHI; } }
+            powerW = segmentsPowerW(segments, pos, cs, polys, moduleEff, sysLoss, backFactor, panelOpts);
+            energyWh += powerW;
+            shadedCount = shadedIdx.length;
+          }
+          const shadedPctNow = total ? (shadedCount/total*100) : 0;
+          if (tw.isRange) {
+            if (!diurnalMap.has(m)) diurnalMap.set(m, {powerSum:0, irrSum:0, shadedSum:0, n:0});
+            const dr = diurnalMap.get(m);
+            dr.powerSum += powerW/1000; dr.irrSum += cs.GHI; dr.shadedSum += shadedPctNow; dr.n++;
+            dayRec.valSum += powerW*stepHours/1000; // kWh for that day
+          } else {
+            dayRec.valSum += powerW/1000; // kW instantaneous for that day
+          }
+          dayRec.irrSum += cs.GHI * (tw.isRange ? stepHours : 1);
+          dayRec.shadedSum += shadedPctNow; dayRec.n++;
+        }
+        processed++;
+        if (performance.now() - lastYield > 40) {
+          progressBar.style.width = Math.round(100*processed/(days.length*minutesList.length)) + '%';
+          await new Promise(r => setTimeout(r, 0));
+          lastYield = performance.now();
+        }
+      }
+    }
+    for (let i = 0; i < total; i++) { if (sunHours[i]<0) sunHours[i]=0; if (intensity[i]<0) intensity[i]=0; }
+
+    const diurnalSeries = tw.isRange ? [...diurnalMap.entries()].sort((a,b)=>a[0]-b[0]).map(([m,v]) => ({
+      minute: m, timeLabel: minutesToHHMM(m),
+      powerKW: v.n ? v.powerSum/v.n : 0, irradianceWm2: v.n ? v.irrSum/v.n : 0, shadedPct: v.n ? v.shadedSum/v.n : 0
+    })) : null;
+    const dailySeries = (days.length > 1) ? [...dailyMap.entries()].map(([day,v]) => ({
+      date: day, value: v.valSum, irradiance: v.irrSum, shadedPct: v.n ? v.shadedSum/v.n : 0
+    })) : null;
+    const dailyKind = tw.isRange ? 'energy' : 'instant'; // energy=kWh/day+Wh/m²/day, instant=kW+W/m² snapshot per day
+
+    let labelA, unitA, labelB, unitB, maxPossibleHours = null, energyLabel, energyValue;
+    const agg = document.getElementById('rangeAggSelect').value;
+
+    if (tw.isRange) {
+      maxPossibleHours = theoreticalMaxHours; // sum of stepHours over sun-up samples, independent of shading
+      let unitSuffix = ' total (' + days.length + ' day(s))';
+      if (agg === 'avg') {
+        for (let i=0;i<total;i++){ sunHours[i]/=days.length; intensity[i]/=days.length; }
+        g0Total/=days.length; energyWh/=days.length; maxPossibleHours/=days.length;
+        unitSuffix = '/day avg';
+      }
+      labelA='Sun hours'; unitA='h'+unitSuffix; labelB='Clear-sky irradiation'; unitB='Wh/m²'+unitSuffix;
+      energyLabel = 'Estimated panel energy' + (agg==='avg' ? ' (avg/day)' : ' (total over range)');
+      energyValue = fmtNum(energyWh/1000,2) + ' kWh' + (agg==='avg' ? '/day' : '');
+    } else {
+      labelA='Fraction of days lit'; unitA='0–1 @ ' + minutesToHHMM(tw.minutes[0]) + ' local';
+      labelB='Avg clear-sky irradiance'; unitB='W/m² @ ' + minutesToHHMM(tw.minutes[0]) + ' local';
+      for (let i=0;i<total;i++){ sunHours[i]/=days.length; intensity[i]/=days.length; }
+      energyLabel = 'Avg instantaneous panel power at ' + minutesToHHMM(tw.minutes[0]) + ' local';
+      energyValue = fmtNum((energyWh/days.length)/1000,2) + ' kW';
+    }
+
+    maskOutsideBoundary(sunHours); maskOutsideBoundary(intensity);
+
+    let minA=Infinity,maxA=-Infinity,minB=Infinity,maxB=-Infinity;
+    for (let i=0;i<total;i++){
+      if (!Number.isNaN(sunHours[i])) { if(sunHours[i]<minA)minA=sunHours[i]; if(sunHours[i]>maxA)maxA=sunHours[i]; }
+      if (!Number.isNaN(intensity[i])) { if(intensity[i]<minB)minB=intensity[i]; if(intensity[i]>maxB)maxB=intensity[i]; }
+    }
+    if (!isFinite(minA)) { minA=0; maxA=0; } if (!isFinite(minB)) { minB=0; maxB=0; }
+
+    result = {
+      mode: tw.isRange ? 'accumulate' : 'acrossdates', cols, rowsN,
+      west: proj.toLatLon(xmin, ymin)[1], north: proj.toLatLon(xmin, ymax)[0],
+      south: proj.toLatLon(xmin, ymin)[0], east: proj.toLatLon(xmax, ymin)[1],
+      pixelSizeXdeg: cellSize/proj.mPerDegLon, pixelSizeYdeg: cellSize/proj.mPerDegLat,
+      gridA: sunHours, labelA, unitA, minA, maxA,
+      gridB: intensity, labelB, unitB, minB, maxB,
+      maxPossibleHours,
+      fileTag: (days.length>1 ? days[0]+'_to_'+days[days.length-1] : days[0]) + (tw.isRange? '_'+document.getElementById('rangeAggSelect').value : '_at_'+minutesToHHMM(tw.minutes[0]).replace(':','')),
+      energyLabel, energyValue,
+      diurnalSeries, dailySeries, dailyKind,
+      summary: 'Reference extraterrestrial (no shading, top of atmosphere): ' + fmtNum(g0Total,0) + ' Wh/m². ' + energyLabel + ': ' + energyValue + '.'
+    };
+  }
+
+  state.result = result;
+  progressBar.style.width = '100%';
+  setTimeout(() => progressWrap.classList.add('hidden'), 400);
+  computeBtn.disabled = false;
+
+  const layerSelect = document.getElementById('layerSelect');
+  layerSelect.options[1].text = result.labelA;
+  layerSelect.options[2].text = result.labelB;
+  layerSelect.options[3].disabled = !result.maxPossibleHours;
+  layerSelect.value = 'A';
+  document.getElementById('exportABtn').disabled = false;
+  document.getElementById('exportBBtn').disabled = false;
+  document.getElementById('exportCBtn').disabled = !result.maxPossibleHours;
+  document.getElementById('exportABtn').textContent = 'Export "' + result.labelA + '" GeoTIFF';
+  document.getElementById('exportBBtn').textContent = 'Export "' + result.labelB + '" GeoTIFF';
+  renderOverlay('A');
+
+  const energyBox = document.getElementById('energyBox');
+  energyBox.classList.remove('hidden');
+  energyBox.innerHTML = '<b>' + result.energyLabel + ':</b> ' + result.energyValue +
+    '<br><span style="color:var(--muted)">Panel area: ' + fmtNum(segments.reduce((s,seg)=>s+Math.hypot(seg.bx-seg.ax,seg.by-seg.ay)*seg.height,0),1) + ' m² · module ' +
+    fmtNum(moduleEff*100,1) + '% · losses ' + fmtNum(sysLoss*100,0) + '% · bifacial back ' + backFactor + '</span>';
+
+  renderCharts(result);
+
+  const dt = ((performance.now()-t0)/1000).toFixed(1);
+  setStatus('Computed ' + plan.cols + '×' + plan.rowsN + ' grid in ' + dt + 's. ' + result.summary, 'ok');
+}
+
+/* ============================== Charts (daily / diurnal) ============================== */
+let diurnalChart = null, dailyChart = null;
+const CHART_COLORS = { energy: '#e08900', irr: '#0d7d8c', shade: '#8a3ffc' };
+
+function triAxisOptions(leftLabel, rightLabel) {
+  return {
+    responsive: true, maintainAspectRatio: false,
+    interaction: {mode:'index', intersect:false},
+    plugins: {legend: {position:'bottom', labels:{boxWidth:14, font:{size:12}}}},
+    scales: {
+      x: {ticks:{font:{size:12}}},
+      y:  {position:'left', title:{display:true, text:leftLabel, font:{size:12}}, ticks:{font:{size:12}, callback:v=>fmtNum(v,1)}},
+      y1: {position:'right', title:{display:true, text:rightLabel, font:{size:12}}, grid:{drawOnChartArea:false}, ticks:{font:{size:12}, callback:v=>fmtNum(v,0)}},
+      y2: {position:'right', title:{display:true, text:'Shading %', font:{size:12}}, grid:{drawOnChartArea:false}, offset:true, min:0, max:100, ticks:{font:{size:12}, callback:v=>fmtNum(v,0)}}
+    }
+  };
+}
+
+function renderCharts(result) {
+  const section = document.getElementById('charts-section');
+  const hasDiurnal = !!(result.diurnalSeries && result.diurnalSeries.length);
+  const hasDaily = !!(result.dailySeries && result.dailySeries.length);
+  section.classList.toggle('hidden', !hasDiurnal && !hasDaily);
+  document.getElementById('diurnalChartWrap').classList.toggle('hidden', !hasDiurnal);
+  document.getElementById('dailyChartWrap').classList.toggle('hidden', !hasDaily);
+  if (!window.Chart) return; // chart.js failed to load from CDN; skip silently, rest of the tool still works
+
+  if (hasDiurnal) {
+    const s = result.diurnalSeries;
+    const ctx = document.getElementById('diurnalChart').getContext('2d');
+    if (diurnalChart) diurnalChart.destroy();
+    diurnalChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: s.map(p => p.timeLabel),
+        datasets: [
+          {label:'Panel power (kW)', data: s.map(p=>p.powerKW), borderColor:CHART_COLORS.energy, backgroundColor:CHART_COLORS.energy, yAxisID:'y', tension:0.25},
+          {label:'Irradiance (W/m²)', data: s.map(p=>p.irradianceWm2), borderColor:CHART_COLORS.irr, backgroundColor:CHART_COLORS.irr, yAxisID:'y1', tension:0.25},
+          {label:'Shading %', data: s.map(p=>p.shadedPct), borderColor:CHART_COLORS.shade, backgroundColor:CHART_COLORS.shade, yAxisID:'y2', tension:0.25, borderDash:[4,3]}
+        ]
+      },
+      options: triAxisOptions('Power (kW)', 'Irradiance (W/m²)')
+    });
+  }
+
+  if (hasDaily) {
+    const s = result.dailySeries;
+    const ctx2 = document.getElementById('dailyChart').getContext('2d');
+    if (dailyChart) dailyChart.destroy();
+    const energyLabel = result.dailyKind === 'energy' ? 'Energy (kWh/day)' : 'Power at that time (kW)';
+    const irrLabel = result.dailyKind === 'energy' ? 'Irradiation (Wh/m²/day)' : 'Irradiance (W/m²)';
+    dailyChart = new Chart(ctx2, {
+      type: 'bar',
+      data: {
+        labels: s.map(p => p.date.slice(5)), // MM-DD
+        datasets: [
+          {type:'bar', label:energyLabel, data: s.map(p=>p.value), backgroundColor:CHART_COLORS.energy, yAxisID:'y'},
+          {type:'line', label:irrLabel, data: s.map(p=>p.irradiance), borderColor:CHART_COLORS.irr, backgroundColor:CHART_COLORS.irr, yAxisID:'y1', tension:0.25},
+          {type:'line', label:'Shading %', data: s.map(p=>p.shadedPct), borderColor:CHART_COLORS.shade, backgroundColor:CHART_COLORS.shade, yAxisID:'y2', tension:0.25, borderDash:[4,3]}
+        ]
+      },
+      options: triAxisOptions(energyLabel, irrLabel)
+    });
+  }
+}
+
+/* ============================== Heatmap rendering ============================== */
+function lerpColor(stops, t) {
+  t = Math.max(0, Math.min(1, t));
+  for (let i=0;i<stops.length-1;i++) {
+    const [t0,c0] = stops[i], [t1,c1] = stops[i+1];
+    if (t>=t0 && t<=t1) {
+      const f = (t1===t0) ? 0 : (t-t0)/(t1-t0);
+      return [0,1,2].map(k => Math.round(c0[k]+(c1[k]-c0[k])*f));
+    }
+  }
+  return stops[stops.length-1][1];
+}
+const A_STOPS = [[0,[10,15,55]],[0.5,[255,140,40]],[1,[255,240,140]]];
+const B_STOPS = [[0,[20,10,50]],[0.5,[210,50,70]],[1,[255,220,90]]];
+const C_STOPS = [[0,[255,240,140]],[0.5,[255,140,40]],[1,[10,15,55]]]; // shadow% : low=bright, high=dark
+
+function gridForKind(kind) {
+  const r = state.result;
+  if (kind === 'A') return {grid:r.gridA, min:r.minA, max:r.maxA, label:r.labelA, unit:r.unitA, stops:A_STOPS};
+  if (kind === 'B') return {grid:r.gridB, min:r.minB, max:r.maxB, label:r.labelB, unit:r.unitB, stops:B_STOPS};
+  // C: derived shadow %
+  const total = r.cols*r.rowsN;
+  const grid = new Float32Array(total);
+  for (let i=0;i<total;i++) grid[i] = Number.isNaN(r.gridA[i]) ? NaN : Math.max(0, Math.min(100, 100*(1-r.gridA[i]/r.maxPossibleHours)));
+  return {grid, min:0, max:100, label:'Shadow %', unit:'%', stops:C_STOPS};
+}
+
+function renderOverlay(kind) {
+  if (state.overlay) { map.removeLayer(state.overlay); state.overlay=null; }
+  const legendEl = document.getElementById('legend');
+  if (kind === 'none' || !state.result) { legendEl.classList.add('hidden'); return; }
+  const r = state.result;
+  const {grid, min, max, label, unit, stops} = gridForKind(kind);
+  const canvas = document.createElement('canvas');
+  canvas.width = r.cols; canvas.height = r.rowsN;
+  const ctx = canvas.getContext('2d');
+  const img = ctx.createImageData(r.cols, r.rowsN);
+  const range = (max-min) || 1;
+  for (let i=0;i<r.cols*r.rowsN;i++) {
+    if (Number.isNaN(grid[i])) { img.data[i*4+3] = 0; continue; }
+    const t = (grid[i]-min)/range;
+    const [cr,cg,cb] = lerpColor(stops, t);
+    img.data[i*4]=cr; img.data[i*4+1]=cg; img.data[i*4+2]=cb; img.data[i*4+3]=235;
+  }
+  ctx.putImageData(img, 0, 0);
+  const opacity = parseFloat(document.getElementById('opacitySlider').value);
+  state.overlay = L.imageOverlay(canvas.toDataURL(), [[r.south, r.west],[r.north, r.east]], {opacity}).addTo(map);
+  state.overlayKind = kind;
+
+  const gradCss = 'linear-gradient(to right, ' + stops.map(s => 'rgb('+s[1].join(',')+') '+(s[0]*100)+'%').join(',') + ')';
+  legendEl.classList.remove('hidden');
+  legendEl.innerHTML = '<div>' + label + '</div>' +
+    '<div class="legendGrad" style="background:'+gradCss+'"></div>' +
+    '<div class="legendLabels"><span>'+fmtNum(min,2)+' '+unit+'</span><span>'+fmtNum(max,2)+' '+unit+'</span></div>';
+}
+
+document.getElementById('layerSelect').addEventListener('change', e => renderOverlay(e.target.value));
+document.getElementById('opacitySlider').addEventListener('input', () => { if (state.overlay) state.overlay.setOpacity(parseFloat(document.getElementById('opacitySlider').value)); });
+
+/* ============================== Click-to-identify ============================== */
+function onIdentifyClick(e) {
+  const r = state.result;
+  if (!r) return;
+  const lon = e.latlng.lng, lat = e.latlng.lat;
+  const c = Math.floor((lon - r.west) / r.pixelSizeXdeg);
+  const rr = Math.floor((r.north - lat) / r.pixelSizeYdeg);
+  if (c < 0 || c >= r.cols || rr < 0 || rr >= r.rowsN) return;
+  const idx = rr * r.cols + c;
+  const aVal = r.gridA[idx], bVal = r.gridB[idx];
+  const shadowPctTxt = r.maxPossibleHours ? (Number.isNaN(aVal) ? 'n/a' : fmtNum(100*(1-aVal/r.maxPossibleHours),1) + '%') : 'n/a';
+  const content = '<div class="identifyPop">' +
+    '<b>' + r.labelA + ':</b> ' + (Number.isNaN(aVal) ? 'outside boundary' : fmtNum(aVal,2) + ' ' + r.unitA) + '<br>' +
+    '<b>' + r.labelB + ':</b> ' + (Number.isNaN(bVal) ? 'outside boundary' : fmtNum(bVal,1) + ' ' + r.unitB) +
+    (r.maxPossibleHours ? ('<br><b>Shadow %:</b> ' + shadowPctTxt) : '') +
+    '<br><span style="color:#666">' + lat.toFixed(6) + ', ' + lon.toFixed(6) + '</span></div>';
+  if (state.identifyPopup) map.closePopup(state.identifyPopup);
+  state.identifyPopup = L.popup().setLatLng(e.latlng).setContent(content).openOn(map);
+}
+
+/* ============================== Export ============================== */
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+function slug(s) { return s.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,''); }
+
+function exportLayer(kind, btnLabelFallback) {
+  const r = state.result; if (!r) return;
+  const {grid, label} = gridForKind(kind);
+  const bytes = writeFloatGeoTIFF(r.cols, r.rowsN, r.west, r.north, r.pixelSizeXdeg, r.pixelSizeYdeg, grid);
+  const name = slug(label || btnLabelFallback) + '_' + r.fileTag + '.tif';
+  downloadBlob(new Blob([bytes], {type:'image/tiff'}), name);
+  setStatus('Exported ' + name, 'ok');
+}
+document.getElementById('exportABtn').addEventListener('click', () => exportLayer('A','layer_a'));
+document.getElementById('exportBBtn').addEventListener('click', () => exportLayer('B','layer_b'));
+document.getElementById('exportCBtn').addEventListener('click', () => exportLayer('C','shadow_pct'));
+
+document.getElementById('exportChartsBtn').addEventListener('click', async () => {
+  const r = state.result;
+  if (!r || (!(r.diurnalSeries && r.diurnalSeries.length) && !(r.dailySeries && r.dailySeries.length))) {
+    setStatus('No chart data to export yet. Run a simulation first.', 'err');
+    return;
+  }
+  try {
+    setStatus('Loading Excel writer…');
+    await ensureScript('XLSX', 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
+    const wb = XLSX.utils.book_new();
+    if (r.diurnalSeries && r.diurnalSeries.length) {
+      const rows = r.diurnalSeries.map(p => ({
+        'Time (local)': p.timeLabel,
+        'Panel power (kW)': p.powerKW,
+        'Irradiance (W/m2)': p.irradianceWm2,
+        'Shading %': p.shadedPct
+      }));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Diurnal');
+    }
+    if (r.dailySeries && r.dailySeries.length) {
+      const energyLabel = r.dailyKind === 'energy' ? 'Energy (kWh per day)' : 'Power (kW)';
+      const irrLabel = r.dailyKind === 'energy' ? 'Irradiation (Wh/m2 per day)' : 'Irradiance (W/m2)';
+      const rows = r.dailySeries.map(p => ({
+        'Date': p.date,
+        [energyLabel]: p.value,
+        [irrLabel]: p.irradiance,
+        'Shading %': p.shadedPct
+      }));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Daily');
+    }
+    const name = 'charts_' + (r.fileTag || 'data') + '.xlsx';
+    XLSX.writeFile(wb, name);
+    setStatus('Exported ' + name, 'ok');
+  } catch (err) {
+    setStatus('Excel export failed (' + err.message + ').', 'err');
+  }
+});
+
+window.addEventListener('resize', () => map.invalidateSize());
+setTimeout(() => map.invalidateSize(), 200);
+
+/* ============================== Init ============================== */
+refreshLocationDependent();
+</script>
+</body>
+</html>
